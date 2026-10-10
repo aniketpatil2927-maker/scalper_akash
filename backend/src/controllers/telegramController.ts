@@ -4,6 +4,25 @@ import { TelegramPost, SystemSetting, User, Subscription, Notification, Plan } f
 import { AuthenticatedRequest } from '../middlewares/auth';
 import { logAudit } from '../utils/audit';
 
+// Ensure fast IPv4 resolution for Telegram Bot API
+try {
+  const dnsModule = require('dns');
+  if (dnsModule && typeof dnsModule.setDefaultResultOrder === 'function') {
+    dnsModule.setDefaultResultOrder('ipv4first');
+  }
+} catch (e) {}
+
+function normalizeChannel(ch: string | null | undefined, fallback: string): string {
+  if (!ch || !ch.trim()) return fallback;
+  let c = ch.trim();
+  if (c.toLowerCase() === 'akashpatil_03bot' || c.toLowerCase() === '@akashpatil_03bot') {
+    return fallback;
+  }
+  if (c.startsWith('@') || c.startsWith('-')) return c;
+  if (/^-?\d+$/.test(c)) return c;
+  return `@${c}`;
+}
+
 // Helper to retrieve a setting from DB or environment fallback
 async function getSetting(key: string, envFallback: string = ''): Promise<string> {
   const row = await SystemSetting.findOne({ where: { key } });
@@ -58,19 +77,22 @@ export const saveTelegramConfig = async (req: AuthenticatedRequest, res: Respons
       return;
     }
 
-    const { botToken, publicChannelId, paidChannelId } = parsed.data;
+    let { botToken, publicChannelId, paidChannelId } = parsed.data;
+
+    let cleanPublic = normalizeChannel(publicChannelId, '@Akashscalpertrading');
+    let cleanPaid = normalizeChannel(paidChannelId, '@Akashscalpertrading_vip');
 
     if (botToken && !botToken.includes('••••')) {
-      await setSetting('TELEGRAM_BOT_TOKEN', botToken);
+      await setSetting('TELEGRAM_BOT_TOKEN', botToken.trim());
     }
-    await setSetting('TELEGRAM_PUBLIC_CHANNEL_ID', publicChannelId);
-    await setSetting('TELEGRAM_PAID_CHANNEL_ID', paidChannelId);
+    await setSetting('TELEGRAM_PUBLIC_CHANNEL_ID', cleanPublic);
+    await setSetting('TELEGRAM_PAID_CHANNEL_ID', cleanPaid);
 
     await logAudit({
       userId: req.user?.id,
       action: 'UPDATE_TELEGRAM_CONFIG',
       resource: 'system_settings',
-      newValue: { publicChannelId, paidChannelId },
+      newValue: { publicChannelId: cleanPublic, paidChannelId: cleanPaid },
       ipAddress: req.ip,
     });
 
@@ -107,30 +129,52 @@ export const testTelegramConnection = async (req: AuthenticatedRequest, res: Res
       return;
     }
 
-    const publicChannelId = req.body?.publicChannelId || await getSetting('TELEGRAM_PUBLIC_CHANNEL_ID', '@Akashscalpertrading');
-    const paidChannelId = req.body?.paidChannelId || await getSetting('TELEGRAM_PAID_CHANNEL_ID', '@Akashscalpertrading_vip');
+    const botId = data.result.id;
+    const botUsername = data.result.username;
 
-    let channelCheckMessage = '';
+    const rawPublic = req.body?.publicChannelId || await getSetting('TELEGRAM_PUBLIC_CHANNEL_ID', '@Akashscalpertrading');
+    const rawPaid = req.body?.paidChannelId || await getSetting('TELEGRAM_PAID_CHANNEL_ID', '@Akashscalpertrading_vip');
+    const publicChannelId = normalizeChannel(rawPublic, '@Akashscalpertrading');
+    const paidChannelId = normalizeChannel(rawPaid, '@Akashscalpertrading_vip');
+
+    // Deep check public channel
+    let publicCheck = { configured: Boolean(publicChannelId), title: '', isAdmin: false, message: '' };
     if (publicChannelId) {
       try {
         const chatRes = await fetch(`https://api.telegram.org/bot${botToken}/getChat?chat_id=${encodeURIComponent(publicChannelId)}`);
         const chatData = await chatRes.json();
         if (chatData.ok) {
-          channelCheckMessage = ` • Channel "${chatData.result.title || publicChannelId}" verified!`;
+          publicCheck.title = chatData.result.title || publicChannelId;
+          const memberRes = await fetch(`https://api.telegram.org/bot${botToken}/getChatMember?chat_id=${encodeURIComponent(publicChannelId)}&user_id=${botId}`);
+          const memberData = await memberRes.json();
+          if (memberData.ok && (memberData.result?.status === 'administrator' || memberData.result?.status === 'creator')) {
+            publicCheck.isAdmin = true;
+            publicCheck.message = `Bot @${botUsername} is verified as Administrator in "${publicCheck.title}" with message posting permissions.`;
+          } else {
+            publicCheck.isAdmin = false;
+            publicCheck.message = `Bot @${botUsername} is NOT an Administrator yet in "${publicCheck.title}". Action: In Telegram, go to channel settings > Administrators > Add @${botUsername} with "Post Messages" enabled.`;
+          }
         } else {
-          channelCheckMessage = ` • Warning: Bot cannot access ${publicChannelId} (${chatData.description}). Make sure the bot is added as an Administrator to the channel!`;
+          publicCheck.message = `Channel "${publicChannelId}" inaccessible: ${chatData.description}.`;
         }
       } catch (cErr: any) {
-        channelCheckMessage = ` • (Could not verify channel access: ${cErr.message})`;
+        publicCheck.message = `Public channel check error: ${cErr.message}`;
       }
     }
 
+    const overallSuccess = data.ok;
+    const readyToBroadcast = publicCheck.isAdmin;
+
     res.json({
-      success: true,
+      success: overallSuccess,
+      readyToBroadcast,
       bot: data.result,
       publicChannelId,
       paidChannelId,
-      message: `Connected successfully as @${data.result.username} (${data.result.first_name})!${channelCheckMessage}`
+      publicCheck,
+      message: readyToBroadcast
+        ? `Bot @${botUsername} is connected and verified as Administrator in ${publicChannelId}!`
+        : `Connected to @${botUsername}, but bot must be added as Administrator in ${publicChannelId} to broadcast!`
     });
   } catch (error: any) {
     res.status(500).json({ success: false, error: error.message || 'Connection test failed' });
@@ -173,9 +217,11 @@ export const createTelegramPost = async (req: AuthenticatedRequest, res: Respons
     } = parsed.data;
 
     const botToken = await getSetting('TELEGRAM_BOT_TOKEN');
-    const publicChannelId = await getSetting('TELEGRAM_PUBLIC_CHANNEL_ID', '@Akashscalpertrading');
-    const paidChannelId = await getSetting('TELEGRAM_PAID_CHANNEL_ID', '@Akashscalpertrading_vip');
+    const rawPublic = await getSetting('TELEGRAM_PUBLIC_CHANNEL_ID', '@Akashscalpertrading');
+    const rawPaid = await getSetting('TELEGRAM_PAID_CHANNEL_ID', '@Akashscalpertrading_vip');
 
+    const publicChannelId = normalizeChannel(rawPublic, '@Akashscalpertrading');
+    const paidChannelId = normalizeChannel(rawPaid, '@Akashscalpertrading_vip');
     const targetChannel = audience === 'PUBLIC' ? publicChannelId : paidChannelId;
 
     let categoryEmoji = '📢';
@@ -255,11 +301,18 @@ export const createTelegramPost = async (req: AuthenticatedRequest, res: Respons
           }
         } else {
           tgStatus = 'FAILED';
+          if (tgData.description?.includes('bot is not a member of the channel chat') || tgData.description?.includes('have no rights to send a message')) {
+            tgResponseLog = `Telegram Error: Bot @akashpatil_03bot is not an Administrator in channel ${targetChannel}. Please open Telegram, go to channel ${targetChannel} > Administrators, and add @akashpatil_03bot with 'Post Messages' permission.`;
+          } else if (tgData.description?.includes('chat not found')) {
+            tgResponseLog = `Channel ${targetChannel} not found. Please verify the channel username (e.g. @Akashscalpertrading) and ensure the bot is added as an Administrator.`;
+          } else {
+            tgResponseLog = `Telegram API Error: ${tgData.description || 'Request rejected'}`;
+          }
           console.error('Telegram dispatch error response:', tgData);
         }
       } catch (err: any) {
         tgStatus = 'FAILED';
-        tgResponseLog = err.message;
+        tgResponseLog = `Network error: ${err.message}. Ensure internet connectivity to Telegram API.`;
         console.error('Telegram network dispatch failed:', err);
       }
     } else {
@@ -468,3 +521,109 @@ export const getSubscriberTelegramFeed = async (req: AuthenticatedRequest, res: 
     res.status(500).json({ error: error.message || 'Failed to fetch subscriber feed' });
   }
 };
+
+// 9. Retry Dispatched Post to Telegram
+export const retryTelegramPost = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const post = await TelegramPost.findByPk(id);
+    if (!post) {
+      res.status(404).json({ error: 'Post not found' });
+      return;
+    }
+
+    const botToken = await getSetting('TELEGRAM_BOT_TOKEN');
+    const rawPublic = await getSetting('TELEGRAM_PUBLIC_CHANNEL_ID', '@Akashscalpertrading');
+    const rawPaid = await getSetting('TELEGRAM_PAID_CHANNEL_ID', '@Akashscalpertrading_vip');
+    const publicChannelId = normalizeChannel(rawPublic, '@Akashscalpertrading');
+    const paidChannelId = normalizeChannel(rawPaid, '@Akashscalpertrading_vip');
+    const targetChannel = post.audience === 'PUBLIC' ? publicChannelId : paidChannelId;
+
+    if (!botToken) {
+      res.status(400).json({ error: 'Telegram Bot Token is not configured' });
+      return;
+    }
+
+    let categoryEmoji = '📢';
+    if (post.category === 'SIGNAL') categoryEmoji = '⚡';
+    if (post.category === 'MARKET_ANALYSIS') categoryEmoji = '📊';
+    if (post.category === 'TARGET_HIT') categoryEmoji = '🎯';
+    if (post.category === 'EDUCATIONAL') categoryEmoji = '💡';
+
+    const audienceBadge = post.audience === 'PAID_MEMBERS'
+      ? `🔒 <b>[EXCLUSIVE VIP SUBSCRIBERS - ${post.targetTier} TIER]</b>`
+      : `🌐 <b>[FREE PUBLIC CHANNEL UPDATE]</b>`;
+
+    const formattedHtml = `<b>${categoryEmoji} ${post.title}</b>\n\n${post.content}\n\n${audienceBadge}\n<i>Via Scalper Akash Platform</i>`;
+
+    const replyMarkup = (post.buttonText && post.buttonUrl) ? {
+      inline_keyboard: [[{ text: post.buttonText, url: post.buttonUrl }]]
+    } : undefined;
+
+    let tgRes: any;
+    if (post.mediaUrl && post.mediaUrl.trim()) {
+      tgRes = await fetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: targetChannel,
+          photo: post.mediaUrl.trim(),
+          caption: formattedHtml,
+          parse_mode: 'HTML',
+          reply_markup: replyMarkup,
+        }),
+      });
+    } else {
+      tgRes = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: targetChannel,
+          text: formattedHtml,
+          parse_mode: 'HTML',
+          reply_markup: replyMarkup,
+          disable_web_page_preview: false,
+        }),
+      });
+    }
+
+    const tgData = await tgRes.json();
+    let tgStatus: 'SENT' | 'FAILED' = tgData.ok ? 'SENT' : 'FAILED';
+    let tgResponseLog = JSON.stringify(tgData);
+
+    if (tgData.ok) {
+      post.telegramMessageId = tgData.result?.message_id ? String(tgData.result.message_id) : null;
+      post.status = 'SENT';
+      post.telegramChannelId = targetChannel;
+      post.responseLog = `Dispatched successfully to ${targetChannel} (Message ID: ${post.telegramMessageId})`;
+      post.sentAt = new Date();
+      await post.save();
+
+      res.json({
+        success: true,
+        message: `Successfully broadcasted to Telegram channel ${targetChannel}!`,
+        post
+      });
+    } else {
+      if (tgData.description?.includes('bot is not a member of the channel chat') || tgData.description?.includes('have no rights to send a message')) {
+        tgResponseLog = `Telegram Error (403): Bot @akashpatil_03bot is not an Administrator in channel ${targetChannel}. Please open Telegram > Channel '${targetChannel}' > Manage/Edit > Administrators > Add Administrator > Search '@akashpatil_03bot' and enable 'Post Messages'.`;
+      } else {
+        tgResponseLog = `Telegram API Error: ${tgData.description || 'Request rejected'}`;
+      }
+
+      post.status = 'FAILED';
+      post.telegramChannelId = targetChannel;
+      post.responseLog = tgResponseLog;
+      await post.save();
+
+      res.status(400).json({
+        success: false,
+        error: tgResponseLog,
+        post
+      });
+    }
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || 'Retry dispatch failed' });
+  }
+};
+

@@ -6,6 +6,7 @@ import {
   createTelegramPost,
   getTelegramPosts,
   deleteTelegramPost,
+  retryTelegramPost,
   getPublicTelegramFeed,
   getSubscriberTelegramFeed,
 } from '../controllers/telegramController';
@@ -22,6 +23,7 @@ router.get('/admin/telegram/config', authenticateJWT, requireRole(['ADMIN', 'SUP
 router.post('/admin/telegram/config', authenticateJWT, requireRole(['ADMIN', 'SUPER_ADMIN', 'TRADER']), saveTelegramConfig);
 router.post('/admin/telegram/test', authenticateJWT, requireRole(['ADMIN', 'SUPER_ADMIN', 'TRADER']), testTelegramConnection);
 router.post('/admin/telegram/post', authenticateJWT, requireRole(['ADMIN', 'SUPER_ADMIN', 'TRADER']), createTelegramPost);
+router.post('/admin/telegram/posts/:id/retry', authenticateJWT, requireRole(['ADMIN', 'SUPER_ADMIN', 'TRADER']), retryTelegramPost);
 router.get('/admin/telegram/posts', authenticateJWT, requireRole(['ADMIN', 'SUPER_ADMIN', 'TRADER']), getTelegramPosts);
 router.delete('/admin/telegram/posts/:id', authenticateJWT, requireRole(['ADMIN', 'SUPER_ADMIN', 'TRADER']), deleteTelegramPost);
 

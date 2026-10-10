@@ -4,12 +4,14 @@ import helmet from 'helmet';
 import dotenv from 'dotenv';
 import path from 'path';
 import fs from 'fs';
-import dns from 'dns';
 
 // Ensure fast IPv4 resolution for Telegram Bot API on Windows
-if (dns.setDefaultResultOrder) {
-  dns.setDefaultResultOrder('ipv4first');
-}
+try {
+  const dnsModule = require('dns');
+  if (dnsModule && typeof dnsModule.setDefaultResultOrder === 'function') {
+    dnsModule.setDefaultResultOrder('ipv4first');
+  }
+} catch (e) {}
 import { Op } from 'sequelize';
 import { sequelize } from './config/db';
 

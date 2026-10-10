@@ -37,6 +37,7 @@ interface TelegramPostItem {
   telegramChannelId: string | null;
   telegramMessageId: string | null;
   status: 'SENT' | 'SIMULATED' | 'FAILED';
+  responseLog?: string | null;
   pinMessage: boolean;
   sentAt: string;
   Author?: {
@@ -63,6 +64,7 @@ export const AdminTelegramPostManagement: React.FC = () => {
 
   // Status & List States
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [retryingPostId, setRetryingPostId] = useState<number | null>(null);
   const [posts, setPosts] = useState<TelegramPostItem[]>([]);
   const [stats, setStats] = useState({ total: 0, publicCount: 0, paidCount: 0, liveSentCount: 0 });
   const [loadingPosts, setLoadingPosts] = useState(true);
@@ -217,6 +219,20 @@ export const AdminTelegramPostManagement: React.FC = () => {
     }
   };
 
+  const handleRetryPost = async (id: number) => {
+    try {
+      setRetryingPostId(id);
+      const res = await apiPost(`/admin/telegram/posts/${id}/retry`, {});
+      showAlert('success', res.message || 'Post broadcasted live to Telegram!');
+      fetchPosts();
+    } catch (err: any) {
+      showAlert('error', err.message || 'Failed to retry Telegram dispatch');
+      fetchPosts();
+    } finally {
+      setRetryingPostId(null);
+    }
+  };
+
   // Quick Template Injector
   const applyTemplate = (type: string) => {
     if (type === 'SIGNAL') {
@@ -346,6 +362,65 @@ export const AdminTelegramPostManagement: React.FC = () => {
             <Bot className="w-4 h-4" />
           </div>
         </div>
+      </div>
+
+      {/* Telegram Channel Setup & Admin Status Card */}
+      <div className="bg-[#0e111a] border border-[#1e2333] rounded-3xl p-5 shadow-2xl relative overflow-hidden">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div className="space-y-1.5">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs font-black uppercase text-white tracking-wider flex items-center gap-1.5">
+                <Bot className="w-4 h-4 text-[#0088cc]" />
+                Telegram Channel Permission Status
+              </span>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#0088cc]/15 text-[#0088cc] border border-[#0088cc]/30 font-mono">
+                Bot: @akashpatil_03bot
+              </span>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-white/5 text-gray-300 border border-white/10 font-mono">
+                Target Channel: {publicChannelId || '@Akashscalpertrading'}
+              </span>
+            </div>
+            <p className="text-xs text-gray-400 leading-relaxed">
+              <strong className="text-amber-400">Important Telegram Requirement:</strong> For Telegram to permit <b className="text-white">@akashpatil_03bot</b> to broadcast signals into <b className="text-[#0088cc]">{publicChannelId || '@Akashscalpertrading'}</b>, open Telegram &gt; Channel <b className="text-white">@Akashscalpertrading</b> &gt; <b>Channel Settings</b> &gt; <b>Administrators</b> &gt; <b>Add Administrator</b> &gt; search <b className="text-[#0088cc]">@akashpatil_03bot</b> &gt; enable <strong className="text-emerald-400">"Post Messages"</strong> &gt; Save.
+            </p>
+          </div>
+          <div className="flex items-center gap-2.5 flex-shrink-0">
+            <button
+              type="button"
+              onClick={handleTestConnection}
+              disabled={testingConnection}
+              className="px-4 py-2 rounded-xl bg-[#0088cc]/15 hover:bg-[#0088cc]/25 text-[#0088cc] border border-[#0088cc]/30 text-xs font-black flex items-center gap-1.5 transition-colors shadow-sm"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${testingConnection ? 'animate-spin' : ''}`} />
+              <span>{testingConnection ? 'Checking Access...' : 'Verify Channel Admin Access'}</span>
+            </button>
+            <a
+              href={`https://t.me/${(publicChannelId || 'Akashscalpertrading').replace('@', '')}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-white text-xs font-bold border border-white/10 flex items-center gap-1.5 transition-colors"
+            >
+              <ExternalLink className="w-3.5 h-3.5" />
+              <span>Open Channel in Telegram</span>
+            </a>
+          </div>
+        </div>
+
+        {testResult && (
+          <div className={`mt-3.5 p-3 rounded-2xl text-xs font-bold flex items-center justify-between ${
+            testResult.success
+              ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+              : 'bg-red-500/10 text-red-400 border border-red-500/20'
+          }`}>
+            <div className="flex items-center gap-2">
+              {testResult.success ? <CheckCircle2 className="w-4 h-4 flex-shrink-0" /> : <AlertTriangle className="w-4 h-4 flex-shrink-0" />}
+              <span>{testResult.message}</span>
+            </div>
+            <button onClick={() => setTestResult(null)} className="text-gray-400 hover:text-white">
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Main Grid: Composer (7 Cols) & Real-Time Preview (5 Cols) */}
@@ -872,29 +947,56 @@ export const AdminTelegramPostManagement: React.FC = () => {
                         {post.telegramChannelId || 'Default Channel'}
                       </div>
                     </td>
-                    <td className="py-3.5 px-3 whitespace-nowrap">
+                    <td className="py-3.5 px-3">
                       {post.status === 'SENT' ? (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 whitespace-nowrap">
                           <Check className="w-2.5 h-2.5" /> Live Sent
                         </span>
                       ) : post.status === 'SIMULATED' ? (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-amber-500/15 text-amber-400 border border-amber-500/30">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-amber-500/15 text-amber-400 border border-amber-500/30 whitespace-nowrap">
                           ⚡ Simulated
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-red-500/15 text-red-400 border border-red-500/30">
-                          ✕ Failed
-                        </span>
+                        <div className="space-y-1">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-red-500/15 text-red-400 border border-red-500/30 whitespace-nowrap">
+                            ✕ Failed
+                          </span>
+                          {post.responseLog && (
+                            <div 
+                              className="text-[10px] text-red-300/90 max-w-[240px] truncate font-mono cursor-help bg-red-500/10 p-1 rounded border border-red-500/20" 
+                              title={post.responseLog}
+                            >
+                              {post.responseLog.includes('Administrator') 
+                                ? 'Bot needs Admin permission in channel' 
+                                : post.responseLog}
+                            </div>
+                          )}
+                        </div>
                       )}
                     </td>
                     <td className="py-3.5 px-3 text-right whitespace-nowrap">
-                      <button
-                        onClick={() => handleDeletePost(post.id)}
-                        className="p-1.5 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors"
-                        title="Delete Post Record"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                      <div className="flex items-center justify-end gap-1.5">
+                        {post.status !== 'SENT' && (
+                          <button
+                            type="button"
+                            onClick={() => handleRetryPost(post.id)}
+                            disabled={retryingPostId === post.id}
+                            className="px-2.5 py-1 rounded-lg bg-[#ccff00]/10 hover:bg-[#ccff00]/20 text-[#ccff00] text-[11px] font-bold border border-[#ccff00]/30 transition-all flex items-center gap-1"
+                            title="Retry Dispatching to Telegram"
+                          >
+                            <RefreshCw className={`w-3 h-3 ${retryingPostId === post.id ? 'animate-spin' : ''}`} />
+                            <span>Retry</span>
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => handleDeletePost(post.id)}
+                          className="p-1.5 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors"
+                          title="Delete Post Record"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
