@@ -1550,3 +1550,62 @@ Backtest.belongsTo(User, { foreignKey: 'user_id' });
 User.hasMany(SavedCalculation, { foreignKey: 'user_id' });
 SavedCalculation.belongsTo(User, { foreignKey: 'user_id' });
 
+// ============================================================================
+// Telegram Post Model (Automated Public & Paid Channel Broadcasting)
+// ============================================================================
+export class TelegramPost extends Model {
+  declare id: number;
+  declare title: string;
+  declare content: string;
+  declare audience: 'PUBLIC' | 'PAID_MEMBERS';
+  declare targetTier: 'ALL' | 'BASIC' | 'PREMIUM' | 'VIP';
+  declare category: string;
+  declare mediaUrl: string | null;
+  declare buttonText: string | null;
+  declare buttonUrl: string | null;
+  declare telegramChannelId: string | null;
+  declare telegramMessageId: string | null;
+  declare status: 'SENT' | 'SIMULATED' | 'FAILED';
+  declare responseLog: string | null;
+  declare pinMessage: boolean;
+  declare authorId: number | null;
+  declare sentAt: Date;
+  declare createdAt: Date;
+  declare updatedAt: Date;
+}
+TelegramPost.init({
+  id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
+  title: { type: DataTypes.STRING(255), allowNull: false },
+  content: { type: DataTypes.TEXT, allowNull: false },
+  audience: { type: DataTypes.ENUM('PUBLIC', 'PAID_MEMBERS'), defaultValue: 'PUBLIC' },
+  targetTier: { type: DataTypes.ENUM('ALL', 'BASIC', 'PREMIUM', 'VIP'), defaultValue: 'ALL', field: 'target_tier' },
+  category: { type: DataTypes.STRING(50), defaultValue: 'ANNOUNCEMENT' },
+  mediaUrl: { type: DataTypes.STRING(1000), allowNull: true, field: 'media_url' },
+  buttonText: { type: DataTypes.STRING(100), allowNull: true, field: 'button_text' },
+  buttonUrl: { type: DataTypes.STRING(1000), allowNull: true, field: 'button_url' },
+  telegramChannelId: { type: DataTypes.STRING(100), allowNull: true, field: 'telegram_channel_id' },
+  telegramMessageId: { type: DataTypes.STRING(100), allowNull: true, field: 'telegram_message_id' },
+  status: { type: DataTypes.ENUM('SENT', 'SIMULATED', 'FAILED'), defaultValue: 'SENT' },
+  responseLog: { type: DataTypes.TEXT, allowNull: true, field: 'response_log' },
+  pinMessage: { type: DataTypes.BOOLEAN, defaultValue: false, field: 'pin_message' },
+  authorId: { type: DataTypes.INTEGER, allowNull: true, field: 'author_id' },
+  sentAt: { type: DataTypes.DATE, defaultValue: DataTypes.NOW, field: 'sent_at' },
+}, { sequelize, tableName: 'telegram_posts' });
+
+User.hasMany(TelegramPost, { foreignKey: 'author_id' });
+TelegramPost.belongsTo(User, { foreignKey: 'author_id', as: 'Author' });
+
+// ============================================================================
+// System Settings Model (Key-Value Dynamic Configuration e.g. Telegram Bot)
+// ============================================================================
+export class SystemSetting extends Model {
+  declare id: number;
+  declare key: string;
+  declare value: string;
+}
+SystemSetting.init({
+  id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
+  key: { type: DataTypes.STRING(100), allowNull: false, unique: true },
+  value: { type: DataTypes.TEXT, allowNull: false },
+}, { sequelize, tableName: 'system_settings' });
+

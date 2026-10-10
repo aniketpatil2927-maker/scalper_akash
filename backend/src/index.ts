@@ -36,6 +36,7 @@ import strategyRoutes from './routes/strategyRoutes';
 import marketplaceRoutes from './routes/marketplaceRoutes';
 import crmRoutes from './routes/crmRoutes';
 import blogRoutes from './routes/blogRoutes';
+import telegramRoutes from './routes/telegramRoutes';
 
 // Models import for expiry worker
 import { Subscription, Notification } from './models/index';
@@ -132,6 +133,7 @@ app.use('/api/strategies', strategyRoutes);
 app.use('/api/marketplace', marketplaceRoutes);
 app.use('/api/crm', crmRoutes);
 app.use('/api/blog', blogRoutes);
+app.use('/api', telegramRoutes);
 
 // Global Error Handler
 app.use((err: any, req: Request, res: Response, next: express.NextFunction) => {

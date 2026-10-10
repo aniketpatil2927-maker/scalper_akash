@@ -17,7 +17,8 @@ import {
   DollarSign,
   Bot,
   Percent,
-  Radio
+  Radio,
+  Send
 } from 'lucide-react';
 
 interface SidebarItem {
@@ -58,6 +59,7 @@ export const AdminSidebar: React.FC = () => {
       groupName: 'Trading Advisory',
       items: [
         { name: 'Signals Manager', path: '/admin/trades', icon: TrendingUp, roles: ['ADMIN', 'SUPER_ADMIN', 'TRADER'] },
+        { name: 'Telegram Post', path: '/admin/telegram', icon: Send, roles: ['ADMIN', 'SUPER_ADMIN', 'TRADER'] },
         { name: 'Session Vault', path: '/admin/videos', icon: Video, roles: ['ADMIN', 'SUPER_ADMIN', 'TRADER'] },
         { name: 'Playbooks Manager', path: '/admin/playbooks', icon: BookOpen, roles: ['ADMIN', 'SUPER_ADMIN', 'TRADER'] },
       ],

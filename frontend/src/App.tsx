@@ -65,6 +65,7 @@ import { AdminCommunityManagement } from './pages/AdminCommunityManagement';
 import { AdminMarketplaceManagement } from './pages/AdminMarketplaceManagement';
 import { AdminCmsManagement } from './pages/AdminCmsManagement';
 import { AdminBroadcastManagement } from './pages/AdminBroadcastManagement';
+import { AdminTelegramPostManagement } from './pages/AdminTelegramPostManagement';
 
 // Route Guard
 const ProtectedRoute: React.FC<{ children: React.ReactNode; allowedRoles?: string[] }> = ({ 
@@ -140,6 +141,14 @@ const MainLayout: React.FC = () => {
                 element={
                   <ProtectedRoute allowedRoles={['TRADER', 'ADMIN', 'SUPER_ADMIN']}>
                     <TradeManagement />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/admin/telegram" 
+                element={
+                  <ProtectedRoute allowedRoles={['TRADER', 'ADMIN', 'SUPER_ADMIN']}>
+                    <AdminTelegramPostManagement />
                   </ProtectedRoute>
                 } 
               />

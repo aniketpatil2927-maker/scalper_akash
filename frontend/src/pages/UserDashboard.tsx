@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 import { CommunityChannels } from '../components/CommunityChannels.js';
+import { TelegramLiveFeed } from '../components/TelegramLiveFeed.js';
 import { TraderScoreCard } from '../components/TraderScoreCard';
 import { 
   Calculator, 
@@ -211,6 +212,9 @@ export const UserDashboard: React.FC = () => {
 
       {/* Official Telegram & WhatsApp VIP Community Channels */}
       <CommunityChannels isVip={!!subscription} />
+
+      {/* Live Telegram Feed (Public & VIP Member Signals) */}
+      <TelegramLiveFeed />
 
       {/* Trading Performance & Desk Telemetry */}
       {subscription && (
