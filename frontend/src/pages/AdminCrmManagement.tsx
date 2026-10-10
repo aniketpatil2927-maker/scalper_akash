@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { API_BASE_URL } from '../context/AuthContext';
 import {
   Users,
   Plus,
@@ -73,7 +74,7 @@ export const AdminCrmManagement: React.FC = () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
-      const res = await fetch(`http://localhost:5000/api/crm/leads?stage=${activeStageFilter}&search=${searchQuery}`, {
+      const res = await fetch(`${API_BASE_URL}/crm/leads?stage=${activeStageFilter}&search=${searchQuery}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
@@ -90,7 +91,7 @@ export const AdminCrmManagement: React.FC = () => {
   const fetchStats = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch('http://localhost:5000/api/crm/stats', {
+      const res = await fetch(`${API_BASE_URL}/crm/stats`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
@@ -106,7 +107,7 @@ export const AdminCrmManagement: React.FC = () => {
     e.preventDefault();
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch('http://localhost:5000/api/crm/leads', {
+      const res = await fetch(`${API_BASE_URL}/crm/leads`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -132,7 +133,7 @@ export const AdminCrmManagement: React.FC = () => {
   const handleUpdateStage = async (leadId: number, newStage: string) => {
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`http://localhost:5000/api/crm/leads/${leadId}/stage`, {
+      const res = await fetch(`${API_BASE_URL}/crm/leads/${leadId}/stage`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',

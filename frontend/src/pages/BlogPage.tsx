@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { API_BASE_URL } from '../context/AuthContext';
 import {
   BookOpen,
   Calendar,
@@ -38,7 +39,7 @@ export const BlogPage: React.FC = () => {
   const fetchPosts = async () => {
     try {
       setLoading(true);
-      const res = await fetch(`http://localhost:5000/api/blog/posts?category=${activeCategory}&search=${searchQuery}`);
+      const res = await fetch(`${API_BASE_URL}/blog/posts?category=${activeCategory}&search=${searchQuery}`);
       if (res.ok) {
         const data = await res.json();
         setPosts(data);

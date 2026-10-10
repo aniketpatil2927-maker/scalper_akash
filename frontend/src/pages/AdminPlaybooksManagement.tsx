@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { API_BASE_URL } from '../context/AuthContext';
 import {
   BookOpen,
   Plus,
@@ -50,7 +51,7 @@ export const AdminPlaybooksManagement: React.FC = () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
-      const res = await fetch('http://localhost:5000/api/playbooks/admin/all', {
+      const res = await fetch(`${API_BASE_URL}/playbooks/admin/all`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
@@ -86,8 +87,8 @@ export const AdminPlaybooksManagement: React.FC = () => {
 
     try {
       const url = editingId
-        ? `http://localhost:5000/api/playbooks/admin/${editingId}`
-        : 'http://localhost:5000/api/playbooks/admin/create';
+        ? `${API_BASE_URL}/playbooks/admin/${editingId}`
+        : `${API_BASE_URL}/playbooks/admin/create`;
       const method = editingId ? 'PUT' : 'POST';
 
       const res = await fetch(url, {
@@ -113,7 +114,7 @@ export const AdminPlaybooksManagement: React.FC = () => {
     if (!confirm('Are you sure you want to delete this playbook?')) return;
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`http://localhost:5000/api/playbooks/admin/${id}`, {
+      const res = await fetch(`${API_BASE_URL}/playbooks/admin/${id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       });

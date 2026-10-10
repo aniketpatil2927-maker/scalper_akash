@@ -12,11 +12,21 @@ const dbName = process.env.DB_NAME || 'two_trade_db';
 
 console.log(`Initializing Sequelize for database ${dbName} at ${dbHost}:${dbPort}...`);
 
+const isSsl = process.env.DB_SSL === 'true' || 
+              process.env.DB_SSL === '1' || 
+              dbHost.includes('tidbcloud.com');
+
 export const sequelize = new Sequelize(dbName, dbUser, dbPassword, {
   host: dbHost,
   port: dbPort,
   dialect: 'mysql',
   logging: process.env.NODE_ENV === 'development' ? console.log : false,
+  dialectOptions: isSsl ? {
+    ssl: {
+      minVersion: 'TLSv1.2',
+      rejectUnauthorized: process.env.DB_SSL_REJECT_UNAUTHORIZED !== 'false',
+    },
+  } : undefined,
   pool: {
     max: 10,
     min: 0,

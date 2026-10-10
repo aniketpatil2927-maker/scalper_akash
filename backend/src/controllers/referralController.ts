@@ -73,9 +73,10 @@ export const getReferralDashboard = async (req: AuthenticatedRequest, res: Respo
     // Available for payout request
     const availableForPayout = approvedCommission;
 
+    const frontendBaseUrl = (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/+$/, '');
     res.json({
       referralCode: refCode,
-      referralLink: `http://localhost:5173/register?ref=${refCode}`,
+      referralLink: `${frontendBaseUrl}/register?ref=${refCode}`,
       stats: {
         clicks: totalRegistrations,
         registrations: totalRegistrations,

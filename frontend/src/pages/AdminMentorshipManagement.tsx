@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { API_BASE_URL } from '../context/AuthContext';
 import {
   Users,
   Video,
@@ -40,7 +41,7 @@ export const AdminMentorshipManagement: React.FC = () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
-      const res = await fetch('http://localhost:5000/api/mentorship/admin/bookings', {
+      const res = await fetch(`${API_BASE_URL}/mentorship/admin/bookings`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
@@ -60,7 +61,7 @@ export const AdminMentorshipManagement: React.FC = () => {
 
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`http://localhost:5000/api/mentorship/admin/bookings/${selectedBooking.id}`, {
+      const res = await fetch(`${API_BASE_URL}/mentorship/admin/bookings/${selectedBooking.id}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',

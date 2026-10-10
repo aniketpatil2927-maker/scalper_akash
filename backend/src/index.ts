@@ -59,8 +59,28 @@ const thumbnailsDir = path.join(uploadsDir, 'thumbnails');
 app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' },
 }));
+
+const allowedOrigins = [
+  process.env.FRONTEND_URL,
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://localhost:5000',
+].filter(Boolean);
+
 app.use(cors({
-  origin: '*', // For development, allow all origins
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true);
+    if (
+      !process.env.FRONTEND_URL ||
+      allowedOrigins.includes(origin) ||
+      origin === process.env.FRONTEND_URL ||
+      origin.endsWith('.vercel.app')
+    ) {
+      return callback(null, true);
+    }
+    return callback(null, true);
+  },
+  credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
@@ -75,9 +95,12 @@ app.use((req, res, next) => {
   next();
 });
 
-// Health check endpoint
+// Production health check endpoints
+app.get('/health', (req: Request, res: Response) => {
+  res.status(200).json({ status: 'ok' });
+});
 app.get('/api/health', (req: Request, res: Response) => {
-  res.json({ status: 'OK', timestamp: new Date(), service: 'Scalper Akash Ecosystem' });
+  res.status(200).json({ status: 'ok', timestamp: new Date(), service: 'Scalper Akash Ecosystem' });
 });
 
 // Bind routers
@@ -150,9 +173,10 @@ async function startServer() {
     await sequelize.sync({ alter: false });
     console.log('Sequelize Models synchronized.');
 
-    app.listen(PORT, () => {
+    const listenPort = Number(PORT);
+    app.listen(listenPort, '0.0.0.0', () => {
       console.log(`========================================================`);
-      console.log(`  SCALPER AKASH ECOSYSTEM SERVER RUNNING ON PORT ${PORT} `);
+      console.log(`  SCALPER AKASH ECOSYSTEM SERVER RUNNING ON PORT ${listenPort} `);
       console.log(`  Environment: ${process.env.NODE_ENV || 'development'} `);
       console.log(`========================================================`);
     });

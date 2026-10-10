@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { API_BASE_URL } from '../context/AuthContext';
 import {
   FileText,
   Plus,
@@ -39,7 +40,7 @@ export const AdminCmsManagement: React.FC = () => {
   const fetchPosts = async () => {
     try {
       setLoading(true);
-      const res = await fetch('http://localhost:5000/api/blog/posts');
+      const res = await fetch(`${API_BASE_URL}/blog/posts`);
       if (res.ok) {
         const data = await res.json();
         setPosts(data);
@@ -56,7 +57,7 @@ export const AdminCmsManagement: React.FC = () => {
     const token = localStorage.getItem('token');
 
     try {
-      const res = await fetch('http://localhost:5000/api/blog/admin/posts', {
+      const res = await fetch(`${API_BASE_URL}/blog/admin/posts`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -89,7 +90,7 @@ export const AdminCmsManagement: React.FC = () => {
     if (!confirm('Are you sure you want to delete this article?')) return;
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`http://localhost:5000/api/blog/admin/posts/${id}`, {
+      const res = await fetch(`${API_BASE_URL}/blog/admin/posts/${id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       });

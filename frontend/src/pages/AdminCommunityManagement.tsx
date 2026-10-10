@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { API_BASE_URL } from '../context/AuthContext';
 import {
   MessageSquare,
   Pin,
@@ -37,7 +38,7 @@ export const AdminCommunityManagement: React.FC = () => {
   const fetchPosts = async () => {
     try {
       setLoading(true);
-      const res = await fetch(`http://localhost:5000/api/community/posts?search=${searchQuery}&limit=100`);
+      const res = await fetch(`${API_BASE_URL}/community/posts?search=${searchQuery}&limit=100`);
       if (res.ok) {
         const data = await res.json();
         setPosts(data);
@@ -52,7 +53,7 @@ export const AdminCommunityManagement: React.FC = () => {
   const handleModerate = async (postId: number, updates: { isPinned?: boolean; isLocked?: boolean; status?: string }) => {
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`http://localhost:5000/api/community/admin/posts/${postId}/moderate`, {
+      const res = await fetch(`${API_BASE_URL}/community/admin/posts/${postId}/moderate`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -73,7 +74,7 @@ export const AdminCommunityManagement: React.FC = () => {
     if (!confirm('Are you sure you want to remove this post?')) return;
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`http://localhost:5000/api/community/admin/posts/${postId}`, {
+      const res = await fetch(`${API_BASE_URL}/community/admin/posts/${postId}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       });

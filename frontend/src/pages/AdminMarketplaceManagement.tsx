@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { API_BASE_URL } from '../context/AuthContext';
 import {
   ShoppingBag,
   Plus,
@@ -39,7 +40,7 @@ export const AdminMarketplaceManagement: React.FC = () => {
   const fetchProducts = async () => {
     try {
       setLoading(true);
-      const res = await fetch('http://localhost:5000/api/marketplace/products');
+      const res = await fetch(`${API_BASE_URL}/marketplace/products`);
       if (res.ok) {
         const data = await res.json();
         setProducts(data);
@@ -57,7 +58,7 @@ export const AdminMarketplaceManagement: React.FC = () => {
     const features = featuresRaw.split('\n').map(s => s.trim()).filter(Boolean);
 
     try {
-      const res = await fetch('http://localhost:5000/api/marketplace/admin/products', {
+      const res = await fetch(`${API_BASE_URL}/marketplace/admin/products`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -89,7 +90,7 @@ export const AdminMarketplaceManagement: React.FC = () => {
     if (!confirm('Are you sure you want to delete this product?')) return;
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`http://localhost:5000/api/marketplace/admin/products/${id}`, {
+      const res = await fetch(`${API_BASE_URL}/marketplace/admin/products/${id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       });

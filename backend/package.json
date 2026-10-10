@@ -7,7 +7,8 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
-    "db:setup": "node scripts/setupDb.js"
+    "db:setup": "node scripts/setupDb.js",
+    "db:verify": "node scripts/verifyDbConnection.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

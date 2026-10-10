@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { API_BASE_URL } from '../context/AuthContext';
 import {
   Users,
   Calendar,
@@ -58,7 +59,7 @@ export const MentorshipPage: React.FC = () => {
   const fetchMentors = async () => {
     try {
       setLoading(true);
-      const res = await fetch('http://localhost:5000/api/mentorship/mentors');
+      const res = await fetch(`${API_BASE_URL}/mentorship/mentors`);
       if (res.ok) {
         const data = await res.json();
         setMentors(data);
@@ -73,7 +74,7 @@ export const MentorshipPage: React.FC = () => {
   const fetchMyBookings = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch('http://localhost:5000/api/mentorship/my-bookings', {
+      const res = await fetch(`${API_BASE_URL}/mentorship/my-bookings`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
@@ -93,7 +94,7 @@ export const MentorshipPage: React.FC = () => {
       const token = localStorage.getItem('token');
       const rate = sessionType === '30_MIN' ? selectedMentor.hourlyRate * 0.6 : selectedMentor.hourlyRate;
 
-      const res = await fetch('http://localhost:5000/api/mentorship/book', {
+      const res = await fetch(`${API_BASE_URL}/mentorship/book`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

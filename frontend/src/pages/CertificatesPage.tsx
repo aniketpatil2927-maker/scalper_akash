@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { API_BASE_URL } from '../context/AuthContext';
 import {
   Award,
   Download,
@@ -31,7 +32,7 @@ export const CertificatesPage: React.FC = () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
-      const res = await fetch('http://localhost:5000/api/courses/my-certificates', {
+      const res = await fetch(`${API_BASE_URL}/courses/my-certificates`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {

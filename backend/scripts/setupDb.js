@@ -27,14 +27,22 @@ async function runSqlFile(connection, filePath) {
 }
 
 async function setup() {
+  const isSsl = process.env.DB_SSL === 'true' || 
+                process.env.DB_SSL === '1' || 
+                (Boolean(process.env.DB_HOST) && process.env.DB_HOST.includes('tidbcloud.com'));
+
   const config = {
     host: process.env.DB_HOST || '127.0.0.1',
     port: parseInt(process.env.DB_PORT || '3306'),
     user: process.env.DB_USER || 'root',
     password: process.env.DB_PASSWORD || '',
+    ssl: isSsl ? {
+      minVersion: 'TLSv1.2',
+      rejectUnauthorized: process.env.DB_SSL_REJECT_UNAUTHORIZED !== 'false',
+    } : undefined,
   };
 
-  console.log(`Connecting to MySQL server at ${config.host}:${config.port} as ${config.user}...`);
+  console.log(`Connecting to MySQL server at ${config.host}:${config.port} as ${config.user} (SSL: ${isSsl})...`);
   
   let connection;
   try {
@@ -47,9 +55,12 @@ async function setup() {
 
   try {
     const dbName = process.env.DB_NAME || 'two_trade_db';
-    console.log(`Rebuilding database ${dbName}...`);
-    await connection.query(`DROP DATABASE IF EXISTS \`${dbName}\`;`);
-    await connection.query(`CREATE DATABASE \`${dbName}\`;`);
+    console.log(`Ensuring database ${dbName} exists...`);
+    try {
+      await connection.query(`CREATE DATABASE IF NOT EXISTS \`${dbName}\`;`);
+    } catch (e) {
+      console.warn(`Could not run CREATE DATABASE: ${e.message}. Proceeding to USE...`);
+    }
     await connection.query(`USE \`${dbName}\`;`);
 
     const schemaPath = path.join(__dirname, '../../database/schema.sql');

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { API_BASE_URL } from '../context/AuthContext';
 import {
   ShoppingBag,
   Download,
@@ -45,7 +46,7 @@ export const MarketplacePage: React.FC = () => {
   const fetchProducts = async () => {
     try {
       setLoading(true);
-      const res = await fetch(`http://localhost:5000/api/marketplace/products?type=${activeType}&search=${searchQuery}`);
+      const res = await fetch(`${API_BASE_URL}/marketplace/products?type=${activeType}&search=${searchQuery}`);
       if (res.ok) {
         const data = await res.json();
         setProducts(data);
@@ -60,7 +61,7 @@ export const MarketplacePage: React.FC = () => {
   const handleCheckout = async (productId: number) => {
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch('http://localhost:5000/api/marketplace/checkout', {
+      const res = await fetch(`${API_BASE_URL}/marketplace/checkout`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

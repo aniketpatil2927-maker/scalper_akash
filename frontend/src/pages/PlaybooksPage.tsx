@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { API_BASE_URL } from '../context/AuthContext';
 import {
   BookOpen,
   CheckSquare,
@@ -55,7 +56,7 @@ export const PlaybooksPage: React.FC = () => {
   const fetchPlaybooks = async () => {
     try {
       setLoading(true);
-      const res = await fetch(`http://localhost:5000/api/playbooks?category=${activeCategory}&search=${searchQuery}`);
+      const res = await fetch(`${API_BASE_URL}/playbooks?category=${activeCategory}&search=${searchQuery}`);
       if (res.ok) {
         const data = await res.json();
         setPlaybooks(data);

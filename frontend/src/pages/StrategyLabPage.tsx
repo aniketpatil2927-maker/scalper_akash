@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { API_BASE_URL } from '../context/AuthContext';
 import {
   FlaskConical,
   Play,
@@ -89,7 +90,7 @@ export const StrategyLabPage: React.FC = () => {
   const fetchStrategies = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch('http://localhost:5000/api/strategies', {
+      const res = await fetch(`${API_BASE_URL}/strategies`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
@@ -107,7 +108,7 @@ export const StrategyLabPage: React.FC = () => {
   const handleSaveStrategy = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch('http://localhost:5000/api/strategies', {
+      const res = await fetch(`${API_BASE_URL}/strategies`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -144,7 +145,7 @@ export const StrategyLabPage: React.FC = () => {
 
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`http://localhost:5000/api/strategies/${stratId}/backtest`, {
+      const res = await fetch(`${API_BASE_URL}/strategies/${stratId}/backtest`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

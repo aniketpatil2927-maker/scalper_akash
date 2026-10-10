@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { API_BASE_URL } from '../context/AuthContext';
 import {
   MessageSquare,
   Heart,
@@ -63,7 +64,7 @@ export const CommunityPage: React.FC = () => {
   const fetchPosts = async () => {
     try {
       setLoading(true);
-      const res = await fetch(`http://localhost:5000/api/community/posts?channel=${activeChannel}&search=${searchQuery}`);
+      const res = await fetch(`${API_BASE_URL}/community/posts?channel=${activeChannel}&search=${searchQuery}`);
       if (res.ok) {
         const data = await res.json();
         setPosts(data);
@@ -81,7 +82,7 @@ export const CommunityPage: React.FC = () => {
 
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch('http://localhost:5000/api/community/posts', {
+      const res = await fetch(`${API_BASE_URL}/community/posts`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -110,7 +111,7 @@ export const CommunityPage: React.FC = () => {
   const handleLike = async (postId: number) => {
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`http://localhost:5000/api/community/posts/${postId}/like`, {
+      const res = await fetch(`${API_BASE_URL}/community/posts/${postId}/like`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -130,7 +131,7 @@ export const CommunityPage: React.FC = () => {
 
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`http://localhost:5000/api/community/posts/${postId}/comments`, {
+      const res = await fetch(`${API_BASE_URL}/community/posts/${postId}/comments`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

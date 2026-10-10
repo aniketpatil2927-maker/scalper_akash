@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Award, ShieldAlert, CheckCircle2, TrendingUp, AlertTriangle, ArrowUpRight, Sparkles, BookOpen } from 'lucide-react';
+import { API_BASE_URL } from '../context/AuthContext';
 
 interface TraderScoreData {
   totalScore: number;
@@ -29,7 +30,7 @@ export const TraderScoreCard: React.FC = () => {
   const fetchScore = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch('http://localhost:5000/api/score/trader-score', {
+      const res = await fetch(`${API_BASE_URL}/score/trader-score`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
