@@ -1,0 +1,10 @@
+{
+  "name": "scalper-akash-ecosystem",
+  "private": true,
+  "description": "Scalper Akash Trading Ecosystem Root Dispatcher",
+  "scripts": {
+    "postinstall": "npm --prefix backend install",
+    "build": "npm --prefix backend run build",
+    "start": "npm --prefix backend start"
+  }
+}
