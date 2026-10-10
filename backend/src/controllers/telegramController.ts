@@ -25,8 +25,8 @@ async function setSetting(key: string, value: string): Promise<void> {
 export const getTelegramConfig = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const botToken = await getSetting('TELEGRAM_BOT_TOKEN');
-    const publicChannelId = await getSetting('TELEGRAM_PUBLIC_CHANNEL_ID', '@scalper_akash_free');
-    const paidChannelId = await getSetting('TELEGRAM_PAID_CHANNEL_ID', '@scalper_akash_vip');
+    const publicChannelId = await getSetting('TELEGRAM_PUBLIC_CHANNEL_ID', '@Akashscalpertrading');
+    const paidChannelId = await getSetting('TELEGRAM_PAID_CHANNEL_ID', '@Akashscalpertrading_vip');
 
     const botTokenMasked = botToken 
       ? `${botToken.substring(0, 6)}••••••••••••${botToken.substring(botToken.length - 4)}` 
@@ -83,7 +83,11 @@ export const saveTelegramConfig = async (req: AuthenticatedRequest, res: Respons
 // 3. Test Telegram Bot Connection & Credentials
 export const testTelegramConnection = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
-    const botToken = await getSetting('TELEGRAM_BOT_TOKEN');
+    const botTokenInput = req.body?.botToken?.trim();
+    const botToken = (botTokenInput && !botTokenInput.includes('••••'))
+      ? botTokenInput
+      : await getSetting('TELEGRAM_BOT_TOKEN');
+
     if (!botToken) {
       res.status(400).json({ 
         success: false, 
@@ -103,15 +107,30 @@ export const testTelegramConnection = async (req: AuthenticatedRequest, res: Res
       return;
     }
 
-    const publicChannelId = await getSetting('TELEGRAM_PUBLIC_CHANNEL_ID');
-    const paidChannelId = await getSetting('TELEGRAM_PAID_CHANNEL_ID');
+    const publicChannelId = req.body?.publicChannelId || await getSetting('TELEGRAM_PUBLIC_CHANNEL_ID', '@Akashscalpertrading');
+    const paidChannelId = req.body?.paidChannelId || await getSetting('TELEGRAM_PAID_CHANNEL_ID', '@Akashscalpertrading_vip');
+
+    let channelCheckMessage = '';
+    if (publicChannelId) {
+      try {
+        const chatRes = await fetch(`https://api.telegram.org/bot${botToken}/getChat?chat_id=${encodeURIComponent(publicChannelId)}`);
+        const chatData = await chatRes.json();
+        if (chatData.ok) {
+          channelCheckMessage = ` • Channel "${chatData.result.title || publicChannelId}" verified!`;
+        } else {
+          channelCheckMessage = ` • Warning: Bot cannot access ${publicChannelId} (${chatData.description}). Make sure the bot is added as an Administrator to the channel!`;
+        }
+      } catch (cErr: any) {
+        channelCheckMessage = ` • (Could not verify channel access: ${cErr.message})`;
+      }
+    }
 
     res.json({
       success: true,
       bot: data.result,
       publicChannelId,
       paidChannelId,
-      message: `Connected successfully as @${data.result.username} (${data.result.first_name})`
+      message: `Connected successfully as @${data.result.username} (${data.result.first_name})!${channelCheckMessage}`
     });
   } catch (error: any) {
     res.status(500).json({ success: false, error: error.message || 'Connection test failed' });
@@ -154,8 +173,8 @@ export const createTelegramPost = async (req: AuthenticatedRequest, res: Respons
     } = parsed.data;
 
     const botToken = await getSetting('TELEGRAM_BOT_TOKEN');
-    const publicChannelId = await getSetting('TELEGRAM_PUBLIC_CHANNEL_ID', '@scalper_akash_free');
-    const paidChannelId = await getSetting('TELEGRAM_PAID_CHANNEL_ID', '@scalper_akash_vip');
+    const publicChannelId = await getSetting('TELEGRAM_PUBLIC_CHANNEL_ID', '@Akashscalpertrading');
+    const paidChannelId = await getSetting('TELEGRAM_PAID_CHANNEL_ID', '@Akashscalpertrading_vip');
 
     const targetChannel = audience === 'PUBLIC' ? publicChannelId : paidChannelId;
 
@@ -245,7 +264,7 @@ export const createTelegramPost = async (req: AuthenticatedRequest, res: Respons
       }
     } else {
       tgStatus = 'SIMULATED';
-      tgResponseLog = 'Simulated dispatch (Bot Token or Channel ID not fully configured). Add bot token to post live.';
+      tgResponseLog = 'Simulated dispatch: Telegram Bot Token is not configured. Add your Bot Token from @BotFather in Bot & Channel Settings (or backend/.env) to broadcast live to Telegram.';
     }
 
     // Persist post to Database
@@ -313,11 +332,14 @@ export const createTelegramPost = async (req: AuthenticatedRequest, res: Respons
 
     res.status(201).json({
       message: tgStatus === 'SENT' 
-        ? `Post published live to Telegram channel ${targetChannel}!`
-        : `Post saved with status '${tgStatus}'. (${tgResponseLog || 'Check Telegram Bot settings'})`,
+        ? `Post published LIVE to Telegram channel ${targetChannel}!`
+        : (tgStatus === 'SIMULATED'
+          ? `⚠️ Post saved in SIMULATED mode. Telegram Bot Token is not configured yet. Configure your Bot Token in settings or backend/.env to publish live to Telegram.`
+          : `❌ Telegram dispatch failed: ${tgResponseLog || 'Telegram API rejected request'}`),
       post,
       status: tgStatus,
       channel: targetChannel,
+      responseLog: tgResponseLog,
     });
   } catch (error: any) {
     res.status(500).json({ error: error.message || 'Failed to dispatch Telegram post' });

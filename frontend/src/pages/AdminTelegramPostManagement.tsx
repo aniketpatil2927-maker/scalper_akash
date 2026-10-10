@@ -79,16 +79,16 @@ export const AdminTelegramPostManagement: React.FC = () => {
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
 
   // Feedback Notification
-  const [alertBanner, setAlertBanner] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [alertBanner, setAlertBanner] = useState<{ type: 'success' | 'error' | 'warning'; message: string } | null>(null);
 
   useEffect(() => {
     fetchPosts();
     fetchConfig();
   }, [filterAudience]);
 
-  const showAlert = (type: 'success' | 'error', message: string) => {
+  const showAlert = (type: 'success' | 'error' | 'warning', message: string) => {
     setAlertBanner({ type, message });
-    setTimeout(() => setAlertBanner(null), 6000);
+    setTimeout(() => setAlertBanner(null), 7000);
   };
 
   const fetchPosts = async () => {
@@ -111,8 +111,8 @@ export const AdminTelegramPostManagement: React.FC = () => {
     try {
       const res = await apiGet('/admin/telegram/config');
       setBotToken(res.botTokenMasked || '');
-      setPublicChannelId(res.publicChannelId || '@scalper_akash_free');
-      setPaidChannelId(res.paidChannelId || '@scalper_akash_vip');
+      setPublicChannelId(res.publicChannelId || '@Akashscalpertrading');
+      setPaidChannelId(res.paidChannelId || '@Akashscalpertrading_vip');
       setIsConfigured(res.isConfigured);
     } catch (err: any) {
       console.error('Failed to fetch config:', err);
@@ -139,7 +139,11 @@ export const AdminTelegramPostManagement: React.FC = () => {
     try {
       setTestingConnection(true);
       setTestResult(null);
-      const res = await apiPost('/admin/telegram/test', {});
+      const res = await apiPost('/admin/telegram/test', {
+        botToken,
+        publicChannelId,
+        paidChannelId,
+      });
       setTestResult({
         success: true,
         message: res.message || 'Connected successfully to Telegram Bot API!'
@@ -177,7 +181,14 @@ export const AdminTelegramPostManagement: React.FC = () => {
       };
 
       const res = await apiPost('/admin/telegram/post', payload);
-      showAlert('success', res.message || 'Post dispatched to Telegram channel!');
+      
+      if (res.status === 'SENT') {
+        showAlert('success', res.message || 'Post published LIVE to Telegram channel!');
+      } else if (res.status === 'SIMULATED') {
+        showAlert('warning', res.message || 'Post saved in Simulated mode. Add your Telegram Bot Token to publish live!');
+      } else {
+        showAlert('error', res.message || 'Failed to dispatch to Telegram channel');
+      }
 
       // Reset form
       setTitle('');
@@ -240,10 +251,16 @@ export const AdminTelegramPostManagement: React.FC = () => {
         <div className={`p-4 rounded-2xl flex items-center justify-between text-sm font-semibold transition-all shadow-xl ${
           alertBanner.type === 'success'
             ? 'bg-[#ccff00]/15 border border-[#ccff00]/40 text-[#ccff00]'
+            : alertBanner.type === 'warning'
+            ? 'bg-amber-500/15 border border-amber-500/40 text-amber-300'
             : 'bg-red-500/15 border border-red-500/40 text-red-400'
         }`}>
           <div className="flex items-center space-x-3">
-            {alertBanner.type === 'success' ? <CheckCircle2 className="w-5 h-5 flex-shrink-0" /> : <AlertTriangle className="w-5 h-5 flex-shrink-0" />}
+            {alertBanner.type === 'success' ? (
+              <CheckCircle2 className="w-5 h-5 flex-shrink-0" />
+            ) : (
+              <AlertTriangle className="w-5 h-5 flex-shrink-0" />
+            )}
             <span>{alertBanner.message}</span>
           </div>
           <button onClick={() => setAlertBanner(null)} className="text-gray-400 hover:text-white">
@@ -335,6 +352,31 @@ export const AdminTelegramPostManagement: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Left Column: Post Composer Form */}
         <div className="lg:col-span-7 space-y-6">
+          {!isConfigured && (
+            <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-lg">
+              <div className="flex items-center space-x-3">
+                <div className="p-2.5 rounded-xl bg-amber-500/20 text-amber-400 flex-shrink-0">
+                  <AlertTriangle className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="text-amber-300 font-black text-sm">
+                    Telegram Bot Not Connected (Simulated Mode Active)
+                  </div>
+                  <div className="text-gray-400 mt-0.5">
+                    Your posts are saved in <strong>Simulated</strong> mode. To publish live to your Telegram channel (<strong>@Akashscalpertrading</strong>), connect your Bot Token.
+                  </div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowConfigModal(true)}
+                className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-black whitespace-nowrap shadow-md transition-colors"
+              >
+                Connect Bot Token
+              </button>
+            </div>
+          )}
+
           <form onSubmit={handleSendPost} className="bg-[#0e111a] border border-[#1e2333] rounded-3xl p-6 shadow-2xl space-y-6">
             
             {/* 1. Audience Selector: Public vs Paid Members */}
@@ -912,7 +954,7 @@ export const AdminTelegramPostManagement: React.FC = () => {
                   type="text"
                   value={publicChannelId}
                   onChange={e => setPublicChannelId(e.target.value)}
-                  placeholder="e.g. @scalper_akash_free or -100xxxxxxxxxx"
+                  placeholder="e.g. @Akashscalpertrading or -100xxxxxxxxxx"
                   className="w-full bg-[#141824] border border-white/10 focus:border-[#0088cc] rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-gray-500 focus:outline-none font-mono"
                   required
                 />
@@ -928,7 +970,7 @@ export const AdminTelegramPostManagement: React.FC = () => {
                   type="text"
                   value={paidChannelId}
                   onChange={e => setPaidChannelId(e.target.value)}
-                  placeholder="e.g. -1001234567890 or @scalper_akash_vip"
+                  placeholder="e.g. @Akashscalpertrading_vip or -100xxxxxxxxxx"
                   className="w-full bg-[#141824] border border-white/10 focus:border-[#ccff00] rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-gray-500 focus:outline-none font-mono"
                   required
                 />
