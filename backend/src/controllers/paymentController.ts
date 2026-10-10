@@ -25,7 +25,7 @@ import { logAudit } from '../utils/audit';
 import { Op } from 'sequelize';
 
 const createOrderSchema = z.object({
-  orderType: z.enum(['SUBSCRIPTION', 'COURSE', 'WEBINAR']).default('SUBSCRIPTION'),
+  orderType: z.enum(['SUBSCRIPTION', 'COURSE', 'WEBINAR', 'PLAN']).default('SUBSCRIPTION'),
   planId: z.number().int().positive().optional(),
   itemId: z.number().int().positive().optional(),
   couponCode: z.string().optional(),
@@ -33,8 +33,10 @@ const createOrderSchema = z.object({
 
 const verifyPaymentSchema = z.object({
   orderId: z.number().int().positive('Invalid Order ID'),
-  paymentGatewayId: z.string().min(3, 'Invalid Gateway ID'),
+  paymentGatewayId: z.string().min(1, 'Invalid Gateway ID or UTR Reference'),
   status: z.enum(['SUCCESS', 'FAILED']),
+  gatewayName: z.string().optional(),
+  utrNumber: z.string().optional(),
 });
 
 export const createOrder = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
@@ -56,7 +58,7 @@ export const createOrder = async (req: AuthenticatedRequest, res: Response): Pro
     let targetPlanId: number | null = null;
     let targetItemId: number | null = null;
 
-    if (orderType === 'SUBSCRIPTION') {
+    if (orderType === 'SUBSCRIPTION' || orderType === 'PLAN') {
       const pId = planId || itemId;
       if (!pId) {
         res.status(400).json({ error: 'Plan ID is required for subscription purchase' });
@@ -132,11 +134,12 @@ export const createOrder = async (req: AuthenticatedRequest, res: Response): Pro
     }
 
     const finalAmount = Math.max(0, baseAmount - discountAmount);
+    const effectiveOrderType = (orderType === 'PLAN' || orderType === 'SUBSCRIPTION') ? 'SUBSCRIPTION' : orderType;
 
     // Create Order
     const order = await Order.create({
       userId: req.user.id,
-      orderType,
+      orderType: effectiveOrderType,
       planId: targetPlanId,
       itemId: targetItemId,
       couponId: appliedCoupon ? appliedCoupon.id : null,
@@ -148,7 +151,7 @@ export const createOrder = async (req: AuthenticatedRequest, res: Response): Pro
 
     res.status(201).json({
       orderId: order.id,
-      orderType,
+      orderType: effectiveOrderType,
       productName,
       baseAmount,
       discountAmount,
@@ -156,7 +159,9 @@ export const createOrder = async (req: AuthenticatedRequest, res: Response): Pro
       couponApplied: appliedCoupon ? appliedCoupon.code : null,
       gatewayDetails: {
         currency: 'INR',
-        merchantName: 'Scalper Akash',
+        merchantName: 'Akash Patil',
+        upiId: 'mr.sky3558-1@okaxis',
+        qrImageUrl: '/upi-qr-scanner.jpg',
         gatewayKey: process.env.RAZORPAY_KEY_ID || 'rzp_live_scalper',
       },
     });
@@ -181,7 +186,8 @@ export const verifyPayment = async (req: AuthenticatedRequest, res: Response): P
       return;
     }
 
-    const { orderId, paymentGatewayId, status } = parsed.data;
+    const { orderId, paymentGatewayId, status, gatewayName, utrNumber } = parsed.data;
+    const finalRefId = (utrNumber && utrNumber.trim()) ? utrNumber.trim() : paymentGatewayId.trim();
 
     const order = await Order.findByPk(orderId, { transaction });
     if (!order) {
@@ -200,11 +206,11 @@ export const verifyPayment = async (req: AuthenticatedRequest, res: Response): P
       await order.update({ status: 'FAILED' }, { transaction });
       await Payment.create({
         orderId: order.id,
-        paymentGatewayId,
-        gatewayName: 'RAZORPAY',
+        paymentGatewayId: finalRefId,
+        gatewayName: gatewayName || 'UPI_QR',
         amount: order.finalAmount,
         status: 'FAILED',
-        gatewayResponse: 'Transaction failed',
+        gatewayResponse: 'Transaction rejected or cancelled',
       }, { transaction });
 
       await transaction.commit();
@@ -215,14 +221,20 @@ export const verifyPayment = async (req: AuthenticatedRequest, res: Response): P
     // Mark order as paid
     await order.update({ status: 'PAID' }, { transaction });
 
-    // Store Payment Record (Immutable)
+    // Store Payment Record (Immutable with UPI details)
     await Payment.create({
       orderId: order.id,
-      paymentGatewayId,
-      gatewayName: 'RAZORPAY',
+      paymentGatewayId: finalRefId,
+      gatewayName: gatewayName || 'UPI_QR',
       amount: order.finalAmount,
       status: 'SUCCESS',
-      gatewayResponse: 'Verified server-side via transaction ID verification',
+      gatewayResponse: JSON.stringify({
+        method: 'UPI_QR_SCANNER',
+        payee: 'Akash Patil',
+        upiId: 'mr.sky3558-1@okaxis',
+        utrNumber: finalRefId,
+        confirmedAt: new Date().toISOString(),
+      }),
     }, { transaction });
 
     // Record Coupon Redemption if coupon was used
@@ -437,5 +449,22 @@ export const getPaymentHistory = async (req: AuthenticatedRequest, res: Response
     res.json(invoices);
   } catch (error: any) {
     res.status(500).json({ error: error.message || 'Internal Server Error' });
+  }
+};
+
+// Admin: Get all orders with payment & user details
+export const getAllOrders = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const orders = await Order.findAll({
+      include: [
+        { model: User, attributes: ['id', 'fullName', 'email', 'mobile'] },
+        { model: Plan, attributes: ['id', 'name', 'price', 'validityDays', 'accessTier', 'allowedTrades'] },
+      ],
+      order: [['createdAt', 'DESC']],
+      limit: 100,
+    });
+    res.json(orders);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || 'Failed to fetch orders' });
   }
 };
