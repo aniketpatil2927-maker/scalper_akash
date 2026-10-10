@@ -3,7 +3,7 @@
   "private": true,
   "description": "Scalper Akash Trading Ecosystem Root Dispatcher",
   "scripts": {
-    "postinstall": "npm --prefix backend install",
+    "postinstall": "npm --prefix backend install --include=dev",
     "build": "npm --prefix backend run build",
     "start": "npm --prefix backend start"
   }
